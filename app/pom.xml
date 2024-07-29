@@ -12,7 +12,6 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <quarkus.langchain4j.version>0.17.0.CR1</quarkus.langchain4j.version>
     <quarkus.mailpit.version>1.1.1</quarkus.mailpit.version>
-    <quarkus.playwright.version>1.0.0</quarkus.playwright.version>
     <quarkus.quinoa.version>2.4.4</quarkus.quinoa.version>
     <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
     <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
@@ -109,12 +108,6 @@
       <groupId>io.quarkiverse.quinoa</groupId>
       <artifactId>quarkus-quinoa-testing</artifactId>
       <version>${quarkus.quinoa.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.quarkiverse.playwright</groupId>
-      <artifactId>quarkus-playwright</artifactId>
-      <version>${quarkus.playwright.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
