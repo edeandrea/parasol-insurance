@@ -2,13 +2,14 @@ package org.parasol.resources;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.argThat;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 import java.net.URI;
-import java.sql.Time;
 import java.time.Duration;
 import java.time.LocalDate;
-import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
@@ -36,6 +37,9 @@ import io.quarkus.websockets.next.OnTextMessage;
 import io.quarkus.websockets.next.WebSocketClient;
 import io.quarkus.websockets.next.WebSocketClientConnection;
 import io.quarkus.websockets.next.WebSocketConnector;
+
+import io.smallrye.mutiny.Multi;
+import io.smallrye.mutiny.Uni;
 
 @QuarkusTest
 class ClaimWebsocketChatBotTests {
@@ -66,14 +70,13 @@ class ClaimWebsocketChatBotTests {
 	@Test
 	void chatBotWorks() {
 		// A Multi which will return our response with a 0.5 second delay between each item
-//		var delayedMulti = Multi.createFrom().iterable(RESPONSE)
-//			.onItem().call(() -> Uni.createFrom().nullItem().onItem().delayIt().by(Duration.ofMillis(500)));
+		var delayedMulti = Multi.createFrom().iterable(RESPONSE)
+			.onItem().call(() -> Uni.createFrom().nullItem().onItem().delayIt().by(Duration.ofMillis(500)));
 
 		// Set up our AI mock
 		var reply = RESPONSE.stream().collect(Collectors.joining(" "));
 		when(this.claimService.chat(argThat(CHAT_SERVICE_MATCHER)))
-			.thenReturn(reply);
-//			.thenReturn(delayedMulti);
+			.thenReturn(delayedMulti);
 
 		// Create a WebSocket connection and wait for the connection to establish
 		var connection = connectClient();
@@ -84,14 +87,11 @@ class ClaimWebsocketChatBotTests {
 		// Wait for the server to respond with what we expect
 		await()
 			.atMost(Duration.ofMinutes(5))
-			.until(() -> ClientEndpoint.MESSAGES.size() == 1);
-//			.until(() -> ClientEndpoint.MESSAGES.size() == RESPONSE.size());
+			.until(() -> ClientEndpoint.MESSAGES.size() == RESPONSE.size());
 
 		// Verify the messages are what we expected
 		assertThat(ClientEndpoint.MESSAGES)
-			.singleElement()
-			.isEqualTo(reply);
-//			.hasSameElementsAs(RESPONSE);
+			.hasSameElementsAs(RESPONSE);
 
 		// Close the connection
 		connection.closeAndAwait();
@@ -107,8 +107,7 @@ class ClaimWebsocketChatBotTests {
 
 		// Set up mock to throw an error
 		when(this.claimService.chat(argThat(CHAT_SERVICE_MATCHER)))
-			.thenThrow(error);
-//			.thenReturn(Multi.createFrom().failure(error));
+			.thenReturn(Multi.createFrom().failure(error));
 
 		// Create a WebSocket connection and wait for the connection to establish
 		var connection = connectClient();

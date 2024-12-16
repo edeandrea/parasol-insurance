@@ -1,6 +1,8 @@
 package org.parasol.ai;
 
+import java.time.Duration;
 import java.util.Optional;
+import java.util.concurrent.ForkJoinPool;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -8,8 +10,9 @@ import jakarta.transaction.Transactional;
 
 import org.parasol.model.Claim;
 
+import io.quarkus.logging.Log;
 import io.quarkus.mailer.Mail;
-import io.quarkus.mailer.Mailer;
+import io.quarkus.mailer.reactive.ReactiveMailer;
 
 import dev.langchain4j.agent.tool.Tool;
 import io.opentelemetry.instrumentation.annotations.SpanAttribute;
@@ -47,13 +50,16 @@ public class NotificationService {
 		Call a real human should you have any questions. 1-800-CAR-SAFE.
 		""";
 
+	// Using a ReactiveMailer instead of Mailer because the mailer hangs on the vert.x thread when streaming responses
 	@Inject
-	Mailer mailer;
+	ReactiveMailer mailer;
 
 	@Tool("update claim status")
 	@Transactional
 	@WithSpan("NotificationService.updateClaimStatus")
 	public String updateClaimStatus(@SpanAttribute("arg.claimId") long claimId, @SpanAttribute("arg.status") String status) {
+		Log.debugf("Updating claim status for claim %d to \"%s\"", claimId, status);
+
 		// Only want to actually do anything if the passed in status has at lease 3 characters
 		return Optional.ofNullable(status)
 			.filter(s -> s.trim().length() > 2)
@@ -92,6 +98,11 @@ public class NotificationService {
 			.setFrom(MESSAGE_FROM);
 
 		// Send the email to the user
-		this.mailer.send(email);
+		// Need to move this to another thread because the mailer blocks the vert.x thread
+		// while polling the SMTP connection, which causes deadlock.
+		// Fail if it doesn't finish in 15 seconds
+		this.mailer.send(email)
+			.runSubscriptionOn(ForkJoinPool.commonPool())
+			.await().atMost(Duration.ofSeconds(15));
 	}
 }
